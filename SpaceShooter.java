@@ -26,10 +26,13 @@ public class SpaceShooter extends JPanel implements ActionListener, KeyListener 
     private int score = 0;
     private int highScore = 0;
     private int level = 1;
-    private int health = 3;
+    private int lives = 3;
+    private int health = 100;
+    private final int MAX_HEALTH = 100;
     private int weaponType = 0; // 0=Normal, 1=Rapid, 2=Spread, 3=Laser
     private int rapidFireCounter = 0;
     private int shieldTimer = 0;
+    private int invincibleTimer = 0;
     private int combo = 0;
     private long lastKillTime = 0;
     private int screenShake = 0;
@@ -54,7 +57,8 @@ public class SpaceShooter extends JPanel implements ActionListener, KeyListener 
     private void startGame() {
         score = 0;
         level = 1;
-        health = 3;
+        lives = 3;
+        health = MAX_HEALTH;
         gameState = GameState.PLAYING;
         enemies.clear();
         bullets.clear();
@@ -62,6 +66,7 @@ public class SpaceShooter extends JPanel implements ActionListener, KeyListener 
         particles.clear();
         weaponType = 0;
         combo = 0;
+        invincibleTimer = 0;
         
         spawnEnemyWave();
     }
@@ -157,19 +162,21 @@ public class SpaceShooter extends JPanel implements ActionListener, KeyListener 
 
     private void drawPlayingElements(Graphics2D g2d) {
         // Draw spaceship with shield
-        g2d.setColor(Color.cyan);
-        int[] xPoints = {spaceshipX, spaceshipX + 25, spaceshipX + 50};
-        int[] yPoints = {spaceshipY + 40, spaceshipY, spaceshipY + 40};
-        g2d.fillPolygon(xPoints, yPoints, 3);
+        if (invincibleTimer == 0 || (invincibleTimer / 5) % 2 == 0) {
+            g2d.setColor(Color.cyan);
+            int[] xPoints = {spaceshipX, spaceshipX + 25, spaceshipX + 50};
+            int[] yPoints = {spaceshipY + 40, spaceshipY, spaceshipY + 40};
+            g2d.fillPolygon(xPoints, yPoints, 3);
 
-        // Fins
-        g2d.setColor(Color.blue.darker());
-        g2d.fillRect(spaceshipX + 5, spaceshipY + 40, 10, 5);
-        g2d.fillRect(spaceshipX + 35, spaceshipY + 40, 10, 5);
+            // Fins
+            g2d.setColor(Color.blue.darker());
+            g2d.fillRect(spaceshipX + 5, spaceshipY + 40, 10, 5);
+            g2d.fillRect(spaceshipX + 35, spaceshipY + 40, 10, 5);
 
-        // Cockpit window
-        g2d.setColor(new Color(0, 200, 255, 180));
-        g2d.fillOval(spaceshipX + 15, spaceshipY + 10, 20, 20);
+            // Cockpit window
+            g2d.setColor(new Color(0, 200, 255, 180));
+            g2d.fillOval(spaceshipX + 15, spaceshipY + 10, 20, 20);
+        }
 
         // Shield
         if (shieldTimer > 0) {
@@ -270,11 +277,28 @@ public class SpaceShooter extends JPanel implements ActionListener, KeyListener 
     private void drawHUD(Graphics2D g2d) {
         g2d.setFont(new Font("Verdana", Font.BOLD, 16));
         
-        // Health
-        String healthText = "Health: " + health;
-        g2d.setColor(Color.red);
-        g2d.drawString(healthText, 10, 30);
+        // Health Bar
+        g2d.setColor(Color.darkGray);
+        g2d.fillRect(10, 20, 150, 15);
+        Color healthColor = health > 50 ? Color.green : (health > 20 ? Color.orange : Color.red);
+        g2d.setColor(healthColor);
+        g2d.fillRect(10, 20, (Math.max(0, health) * 150) / MAX_HEALTH, 15);
+        g2d.setColor(Color.white);
+        g2d.drawRect(10, 20, 150, 15);
+        g2d.setFont(new Font("Verdana", Font.BOLD, 10));
+        g2d.drawString("HEALTH", 10, 15);
+
+        // Lives
+        for (int i = 0; i < lives; i++) {
+            int x = 10 + i * 25;
+            int y = 45;
+            g2d.setColor(Color.cyan);
+            int[] lx = {x, x + 10, x + 20};
+            int[] ly = {y + 15, y, y + 15};
+            g2d.fillPolygon(lx, ly, 3);
+        }
         
+        g2d.setFont(new Font("Verdana", Font.BOLD, 16));
         // Level
         String levelText = "Level: " + level;
         g2d.setColor(Color.yellow);
@@ -392,8 +416,9 @@ public class SpaceShooter extends JPanel implements ActionListener, KeyListener 
         if (leftPressed && spaceshipX > 0) spaceshipX -= 7;
         if (rightPressed && spaceshipX < getWidth() - 50) spaceshipX += 7;
 
-        // Update shield
+        // Update shield and invincibility
         if (shieldTimer > 0) shieldTimer--;
+        if (invincibleTimer > 0) invincibleTimer--;
 
         // Move and update bullets
         Iterator<Bullet> bulletIter = bullets.iterator();
@@ -429,16 +454,33 @@ public class SpaceShooter extends JPanel implements ActionListener, KeyListener 
                     enemyIter.remove();
                     shieldTimer = 0;
                     screenShake = 5;
-                } else {
-                    health--;
+                    createExplosion(en.x + 20, en.y + 15);
+                } else if (invincibleTimer == 0) {
+                    int damage = 20;
+                    switch (en.type) {
+                        case FAST: damage = 15; break;
+                        case HEAVY: damage = 40; break;
+                        case BOSS: damage = 60; break;
+                    }
+                    health -= damage;
                     screenShake = 8;
+                    createExplosion(spaceshipX + 25, spaceshipY + 20);
+                    
                     if (health <= 0) {
-                        gameState = GameState.GAME_OVER;
-                        if (score > highScore) {
-                            highScore = score;
-                            saveHighScore();
+                        lives--;
+                        if (lives <= 0) {
+                            health = 0;
+                            gameState = GameState.GAME_OVER;
+                            if (score > highScore) {
+                                highScore = score;
+                                saveHighScore();
+                            }
+                            return;
+                        } else {
+                            health = MAX_HEALTH;
+                            invincibleTimer = 100;
+                            screenShake = 20;
                         }
-                        return;
                     }
                     enemyIter.remove();
                 }
@@ -574,6 +616,12 @@ public class SpaceShooter extends JPanel implements ActionListener, KeyListener 
                     if (weaponType == 3) weaponType = 0;
                 }).start();
                 break;
+            case HEALTH:
+                health = Math.min(MAX_HEALTH, health + 30);
+                break;
+            case LIFE:
+                lives++;
+                break;
         }
     }
 
@@ -674,7 +722,7 @@ public class SpaceShooter extends JPanel implements ActionListener, KeyListener 
         }
     }
 
-    enum PowerUpType { SHIELD, RAPID_FIRE, SPREAD_SHOT, LASER }
+    enum PowerUpType { SHIELD, RAPID_FIRE, SPREAD_SHOT, LASER, HEALTH, LIFE }
 
     private static class PowerUp {
         int x, y;
@@ -685,28 +733,31 @@ public class SpaceShooter extends JPanel implements ActionListener, KeyListener 
         PowerUp(int x, int y) {
             this.x = x;
             this.y = y;
-            int rand = new Random().nextInt(4);
-            switch (rand) {
-                case 0:
-                    this.type = PowerUpType.SHIELD;
-                    this.color = Color.blue;
-                    this.icon = "S";
-                    break;
-                case 1:
-                    this.type = PowerUpType.RAPID_FIRE;
-                    this.color = Color.red;
-                    this.icon = "R";
-                    break;
-                case 2:
-                    this.type = PowerUpType.SPREAD_SHOT;
-                    this.color = Color.magenta;
-                    this.icon = "W";
-                    break;
-                case 3:
-                    this.type = PowerUpType.LASER;
-                    this.color = Color.yellow;
-                    this.icon = "L";
-                    break;
+            int rand = new Random().nextInt(100);
+            if (rand < 20) {
+                this.type = PowerUpType.SHIELD;
+                this.color = Color.blue;
+                this.icon = "S";
+            } else if (rand < 40) {
+                this.type = PowerUpType.RAPID_FIRE;
+                this.color = Color.red;
+                this.icon = "R";
+            } else if (rand < 60) {
+                this.type = PowerUpType.SPREAD_SHOT;
+                this.color = Color.magenta;
+                this.icon = "W";
+            } else if (rand < 75) {
+                this.type = PowerUpType.LASER;
+                this.color = Color.yellow;
+                this.icon = "L";
+            } else if (rand < 90) {
+                this.type = PowerUpType.HEALTH;
+                this.color = Color.green;
+                this.icon = "H";
+            } else {
+                this.type = PowerUpType.LIFE;
+                this.color = new Color(255, 100, 100);
+                this.icon = "♥";
             }
         }
     }
