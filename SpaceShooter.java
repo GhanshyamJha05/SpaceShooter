@@ -19,15 +19,18 @@ public class SpaceShooter extends JPanel implements ActionListener, KeyListener 
     private boolean leftPressed = false;
     private boolean rightPressed = false;
     private ArrayList<Bullet> bullets = new ArrayList<>();
+    private ArrayList<Bullet> enemyBullets = new ArrayList<>();
     private ArrayList<Enemy> enemies = new ArrayList<>();
     private ArrayList<PowerUp> powerUps = new ArrayList<>();
     private ArrayList<Particle> particles = new ArrayList<>();
     private ArrayList<Star> stars = new ArrayList<>();
+    private ArrayList<FloatingText> floatingTexts = new ArrayList<>();
     private int score = 0;
     private int highScore = 0;
     private int level = 1;
     private int lives = 3;
     private int health = 100;
+    private int bombs = 3;
     private final int MAX_HEALTH = 100;
     private int weaponType = 0; // 0=Normal, 1=Rapid, 2=Spread, 3=Laser
     private int rapidFireCounter = 0;
@@ -59,11 +62,14 @@ public class SpaceShooter extends JPanel implements ActionListener, KeyListener 
         level = 1;
         lives = 3;
         health = MAX_HEALTH;
+        bombs = 3;
         gameState = GameState.PLAYING;
         enemies.clear();
         bullets.clear();
+        enemyBullets.clear();
         powerUps.clear();
         particles.clear();
+        floatingTexts.clear();
         weaponType = 0;
         combo = 0;
         invincibleTimer = 0;
@@ -204,6 +210,14 @@ public class SpaceShooter extends JPanel implements ActionListener, KeyListener 
             g2d.fillOval(b.x - 1, b.y - 2, 10, 16);
         }
 
+        // Draw enemy bullets
+        for (Bullet b : enemyBullets) {
+            g2d.setColor(new Color(255, 50, 50));
+            g2d.fillOval(b.x, b.y, 8, 8);
+            g2d.setColor(new Color(255, 100, 100, 150));
+            g2d.drawOval(b.x - 2, b.y - 2, 12, 12);
+        }
+
         // Draw enemies
         for (Enemy en : enemies) {
             drawEnemy(g2d, en);
@@ -313,10 +327,22 @@ public class SpaceShooter extends JPanel implements ActionListener, KeyListener 
         if (combo > 1) {
             String comboText = "COMBO x" + combo;
             g2d.setColor(new Color(255, 100, 255));
-            g2d.setFont(new Font("Verdana", Font.BOLD, 14));
+            g2d.setFont(new Font("Verdana", Font.BOLD, 20));
             FontMetrics fm = g2d.getFontMetrics();
             int x = (getWidth() - fm.stringWidth(comboText)) / 2;
-            g2d.drawString(comboText, x, 60);
+            g2d.drawString(comboText, x, 70);
+        }
+
+        // Bombs
+        g2d.setFont(new Font("Verdana", Font.BOLD, 12));
+        g2d.setColor(Color.orange);
+        g2d.drawString("BOMBS: " + bombs + " [B]", 10, 75);
+
+        // Floating texts
+        for (FloatingText ft : floatingTexts) {
+            g2d.setColor(new Color(ft.color.getRed(), ft.color.getGreen(), ft.color.getBlue(), Math.min(255, ft.life * 5)));
+            g2d.setFont(new Font("Verdana", Font.BOLD, 14));
+            g2d.drawString(ft.text, ft.x, ft.y);
         }
 
         // Weapon indicator
@@ -425,8 +451,34 @@ public class SpaceShooter extends JPanel implements ActionListener, KeyListener 
         while (bulletIter.hasNext()) {
             Bullet b = bulletIter.next();
             b.y -= b.speed;
-            if (b.y < -20) {
+            if (b.y < -20 || b.y > getHeight() + 20) {
                 bulletIter.remove();
+            }
+        }
+
+        // Move and update enemy bullets
+        Iterator<Bullet> enemyBulletIter = enemyBullets.iterator();
+        while (enemyBulletIter.hasNext()) {
+            Bullet b = enemyBulletIter.next();
+            b.y -= b.speed; // b.speed is negative for enemy bullets
+            
+            Rectangle ebRect = new Rectangle(b.x, b.y, 8, 8);
+            Rectangle playerRect = new Rectangle(spaceshipX, spaceshipY, 50, 40);
+            
+            if (ebRect.intersects(playerRect)) {
+                if (invincibleTimer == 0) {
+                    if (shieldTimer > 0) {
+                        shieldTimer = 0;
+                    } else {
+                        health -= 10;
+                        if (health <= 0) handlePlayerDeath();
+                    }
+                    screenShake = 5;
+                    createExplosion(b.x, b.y);
+                    enemyBulletIter.remove();
+                }
+            } else if (b.y > getHeight() + 20) {
+                enemyBulletIter.remove();
             }
         }
 
@@ -441,6 +493,15 @@ public class SpaceShooter extends JPanel implements ActionListener, KeyListener 
                 // Boss movement pattern
                 en.x += (int)(3 * Math.sin(System.currentTimeMillis() / 500.0));
                 en.x = Math.max(0, Math.min(en.x, getWidth() - 60));
+            }
+            
+            // Enemy shooting logic
+            if (rand.nextInt(100) < 2 + (level / 2)) {
+                if (en.type == EnemyType.BOSS || en.type == EnemyType.BASIC) {
+                    Bullet eb = new Bullet(en.x + 20, en.y + 30, 0);
+                    eb.speed = -4 - (level / 2); // Traveling down
+                    enemyBullets.add(eb);
+                }
             }
             
             // Check if enemy hit player
@@ -467,20 +528,8 @@ public class SpaceShooter extends JPanel implements ActionListener, KeyListener 
                     createExplosion(spaceshipX + 25, spaceshipY + 20);
                     
                     if (health <= 0) {
-                        lives--;
-                        if (lives <= 0) {
-                            health = 0;
-                            gameState = GameState.GAME_OVER;
-                            if (score > highScore) {
-                                highScore = score;
-                                saveHighScore();
-                            }
-                            return;
-                        } else {
-                            health = MAX_HEALTH;
-                            invincibleTimer = 100;
-                            screenShake = 20;
-                        }
+                        handlePlayerDeath();
+                        if (gameState == GameState.GAME_OVER) return;
                     }
                     enemyIter.remove();
                 }
@@ -522,6 +571,17 @@ public class SpaceShooter extends JPanel implements ActionListener, KeyListener 
             }
         }
 
+        // Update floating texts
+        Iterator<FloatingText> ftIter = floatingTexts.iterator();
+        while (ftIter.hasNext()) {
+            FloatingText ft = ftIter.next();
+            ft.y -= 1;
+            ft.life--;
+            if (ft.life <= 0) {
+                ftIter.remove();
+            }
+        }
+
         // Handle rapid fire
         if (weaponType == 1) {
             rapidFireCounter++;
@@ -556,6 +616,7 @@ public class SpaceShooter extends JPanel implements ActionListener, KeyListener 
                             case BOSS: points = 200; break;
                         }
                         score += points * combo;
+                        floatingTexts.add(new FloatingText("+" + (points * combo), en.x, en.y, 50, Color.yellow));
                         combo++;
                         lastKillTime = System.currentTimeMillis();
                         
@@ -582,6 +643,42 @@ public class SpaceShooter extends JPanel implements ActionListener, KeyListener 
         }
 
         repaint();
+    }
+
+    private void handlePlayerDeath() {
+        lives--;
+        if (lives <= 0) {
+            health = 0;
+            gameState = GameState.GAME_OVER;
+            if (score > highScore) {
+                highScore = score;
+                saveHighScore();
+            }
+        } else {
+            health = MAX_HEALTH;
+            invincibleTimer = 100;
+            screenShake = 20;
+            enemyBullets.clear(); // Clear bullets to give player a chance
+        }
+    }
+
+    private void useBomb() {
+        if (bombs > 0 && gameState == GameState.PLAYING) {
+            bombs--;
+            screenShake = 30;
+            Iterator<Enemy> it = enemies.iterator();
+            while (it.hasNext()) {
+                Enemy en = it.next();
+                if (en.type != EnemyType.BOSS) {
+                    createExplosion(en.x + 20, en.y + 15);
+                    score += 10;
+                    it.remove();
+                } else {
+                    en.health -= 5;
+                }
+            }
+            enemyBullets.clear();
+        }
     }
 
     private void createExplosion(int x, int y) {
@@ -661,6 +758,8 @@ public class SpaceShooter extends JPanel implements ActionListener, KeyListener 
                 rightPressed = true;
             } else if (key == KeyEvent.VK_SPACE) {
                 fireWeapon();
+            } else if (key == KeyEvent.VK_B) {
+                useBomb();
             }
         }
     }
@@ -815,6 +914,20 @@ public class SpaceShooter extends JPanel implements ActionListener, KeyListener 
                     break;
             }
             this.maxHealth = this.health;
+        }
+    }
+
+    private static class FloatingText {
+        String text;
+        int x, y, life;
+        Color color;
+
+        FloatingText(String text, int x, int y, int life, Color color) {
+            this.text = text;
+            this.x = x;
+            this.y = y;
+            this.life = life;
+            this.color = color;
         }
     }
 

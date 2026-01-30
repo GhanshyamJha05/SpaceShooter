@@ -4,13 +4,14 @@ A fully-featured 2D arcade spaceship shooter game built with **Java Swing and AW
 
 ---
 
-## ✨ NEW FEATURES (10x Upgrade!)
+## ✨ NEW FEATURES (Ultimate Upgrade!)
 
 ### 🎮 Game Progression
 - **Level System**: Progressive difficulty with increasing enemy spawn rates
 - **Difficulty Selection**: Choose Easy, Normal, or Hard before each game
 - **High Score Persistence**: Your best score is automatically saved and loaded
 - **Combo System**: Build multipliers by continuously defeating enemies for bigger scores
+- **Floating Scores**: Visual feedback for points earned during combat
 
 ### 💥 Advanced Combat
 - **4 Weapon Types**:
@@ -18,40 +19,28 @@ A fully-featured 2D arcade spaceship shooter game built with **Java Swing and AW
   - 🔴 **Rapid Fire**: Quick shots for 5 seconds
   - 🟣 **Spread Shot**: 3-way bullet spread
   - 🟨 **Laser**: Piercing laser beam (100 damage)
+- **Bomb System**: Press [B] to clear the screen of standard enemies (Limited supply!)
 
-### 🛡️ Enemy Variety
+### 🛡️ Enemy Intelligence
+- **Armed Enemies**: Enemies now fight back! Watch out for incoming fire.
 - **4 Enemy Types** with unique behaviors:
-  - 🔴 **Basic**: Standard enemies
-  - 🟣 **Fast**: Quick enemies for 25 points
-  - ⬛ **Heavy**: Armored enemies with 3 HP, worth 50 points
-  - 🌟 **Boss**: Large boss fights with 10 HP, worth 200 points!
+  - 🔴 **Basic**: Standard enemies that occasionally shoot
+  - 🟣 **Fast**: Quick, elusive enemies
+  - ⬛ **Heavy**: Armored ships with 3 HP
+  - 🌟 **Boss**: Massive warships with 10 HP and high fire rate!
 
 ### 🎁 Power-Up System
 - **Shield** (Blue S): Absorb one hit
 - **Rapid Fire** (Red R): 5 seconds of quick shots
 - **Spread Shot** (Purple W): 3-directional fire
 - **Laser** (Yellow L): Piercing high-damage weapon
-- 30% chance to drop after each kill
+- **Health/Lives**: Recovery items to keep you in the fight
 
-### 🎨 Visual Enhancements
-- **Particle Effects**: Explosion effects when enemies are destroyed
-- **Screen Shake**: Impact feedback on collisions
-- **Shield Visualization**: See your active shield around the spaceship
-- **Health Bars**: Heavy enemies and bosses show remaining health
-- **Anti-aliasing**: Smooth graphics rendering
-- **Dynamic UI**: Weapon indicator and combo display
-
-### 🎯 Gameplay Mechanics
-- **3 Lives System**: Take 3 hits before game over (shields extend your life)
-- **Twinkling Starfield**: Atmospheric background with twinkling effects
-- **Boss Encounters**: Face challenging boss enemies at higher levels
-- **Smooth Controls**: Responsive keyboard input
-
-### 🎮 Game States
-- **Menu Screen**: Difficulty selection before each game
-- **Pause System**: Press P to pause/resume
-- **Game Over Screen**: Shows final score, level, and high score comparison
-- **Score Tracking**: Real-time display of score, health, level, and weapon type
+### 🎨 Visual & Feedback
+- **Particle Effects**: Dynamic explosions for every destruction
+- **Screen Shake**: Intense feedback on impacts and bomb usage
+- **Floating Text**: Damage and score indicators pop up in real-time
+- **Smooth Rendering**: Anti-aliased graphics and twinkling starfield
 
 ---
 
@@ -61,6 +50,7 @@ A fully-featured 2D arcade spaceship shooter game built with **Java Swing and AW
 | ------------ | --------------------------- |
 | 1, 2, 3      | Select difficulty (Menu)    |
 | Spacebar     | Start game (Menu) / Shoot   |
+| **B**        | **Use Mega Bomb**           |
 | Left Arrow   | Move spaceship left         |
 | Right Arrow  | Move spaceship right        |
 | P            | Pause / Resume              |
@@ -89,43 +79,22 @@ A fully-featured 2D arcade spaceship shooter game built with **Java Swing and AW
 - **Fast Enemy**: 25 points × combo multiplier  
 - **Heavy Enemy**: 50 points × combo multiplier
 - **Boss Enemy**: 200 points × combo multiplier
-- **Combo Multiplier**: Resets after 3 seconds without a kill
+- **Mega Bomb Kill**: 10 points (Combo does not apply to bombs)
 
 ---
 
-## Tips & Tricks
-
-🎯 **Master Combo Chains**: Continuously kill enemies within 3 seconds to build your combo multiplier
-🛡️ **Use Shields Wisely**: Shields protect you from one hit and give you breathing room
-🔴 **Watch for Bosses**: Bosses are large targets, destroy them for massive points!
-🟣 **Avoid Heavy Enemies**: Heavy enemies are slow but durable, use spread shot or laser
-⚡ **Laser Pierces**: The laser weapon passes through multiple enemies in a line
-
----
-
-## File Structure
-
-- **SpaceShooter.java** - Main game code with all classes:
-  - Game loop and rendering logic
-  - Spaceship, Bullet, Enemy (with types), PowerUp, and Particle classes
-  - Complete game state management (Menu, Playing, Paused, GameOver)
-  - High score persistence system
-- Keyboard input handling
-- Game state management
-
----
 ## Future Improvements
 
-- Add sound effects and background music
-- Introduce power-ups and multiple enemy types
-- Implement player lives and health system
-- Add explosion animations and particle effects
-- Create multiple levels with increasing difficulty
+- Add sound effects and ambient background music
+- Implement a weapon upgrade/shop system
+- Add more diverse boss patterns and phases
+- Support for game controllers
 
 ---
 
 ## License
 This project is open source and free to use.
+
 ---
 ## Author
 Created by [GhanshyamJha05](https://github.com/GhanshyamJha05)
