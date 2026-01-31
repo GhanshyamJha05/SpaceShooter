@@ -92,6 +92,10 @@ A fully-featured 2D arcade spaceship shooter game built with **Java Swing and AW
 
 ---
 
+## WORK IN PROGRESS
+
+---
+
 ## License
 This project is open source and free to use.
 
