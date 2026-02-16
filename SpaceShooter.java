@@ -252,7 +252,14 @@ public class SpaceShooter extends JPanel implements ActionListener, KeyListener 
                 g2d.fillRect(en.x + 25, en.y + 10, 10, 10);
                 break;
             case BOSS:
-                g2d.setColor(new Color(200, 20, 20));
+                float healthPercent = (float)en.health / en.maxHealth;
+                if (healthPercent > 0.7) {
+                    g2d.setColor(new Color(200, 20, 20)); // Red
+                } else if (healthPercent > 0.4) {
+                    g2d.setColor(new Color(200, 100, 0)); // Orange
+                } else {
+                    g2d.setColor(new Color(150, 0, 150)); // Purple (Enraged)
+                }
                 g2d.fillRect(en.x, en.y, 60, 50);
                 g2d.setColor(new Color(255, 100, 100));
                 g2d.fillRect(en.x + 5, en.y + 5, 50, 40);
@@ -490,18 +497,87 @@ public class SpaceShooter extends JPanel implements ActionListener, KeyListener 
             en.y += en.speed;
             
             if (en.type == EnemyType.BOSS) {
-                // Boss movement pattern
-                en.x += (int)(3 * Math.sin(System.currentTimeMillis() / 500.0));
-                en.x = Math.max(0, Math.min(en.x, getWidth() - 60));
-            }
-            
-            // Enemy shooting logic
-            if (rand.nextInt(100) < 2 + (level / 2)) {
-                if (en.type == EnemyType.BOSS || en.type == EnemyType.BASIC) {
-                    Bullet eb = new Bullet(en.x + 20, en.y + 30, 0);
-                    eb.speed = -4 - (level / 2); // Traveling down
-                    enemyBullets.add(eb);
+                float healthPercent = (float)en.health / en.maxHealth;
+
+                if (healthPercent > 0.7) {
+                    // Phase 1: Sine movement + Single Shot
+                    en.x += (int)(3 * Math.sin(System.currentTimeMillis() / 500.0));
+                    
+                    if (rand.nextInt(100) < 3) {
+                       Bullet eb = new Bullet(en.x + 20, en.y + 30, 0);
+                       eb.speed = -4 - (level / 2);
+                       enemyBullets.add(eb);
+                    }
+                } else if (healthPercent > 0.4) {
+                    // Phase 2: Faster movement + Spread Shot
+                    en.x += (int)(6 * Math.sin(System.currentTimeMillis() / 300.0));
+                    
+                    if (rand.nextInt(100) < 4) {
+                       Bullet eb1 = new Bullet(en.x + 20, en.y + 30, 0);
+                       Bullet eb2 = new Bullet(en.x + 20, en.y + 30, -3); // Left diagonal
+                       Bullet eb3 = new Bullet(en.x + 20, en.y + 30, 3);  // Right diagonal
+                       
+                       eb1.speed = -5 - (level / 2);
+                       eb2.speed = -5 - (level / 2);
+                       eb3.speed = -5 - (level / 2);
+                       
+                       enemyBullets.add(eb1);
+                       enemyBullets.add(eb2);
+                       enemyBullets.add(eb3);
+                    }
+                } else {
+                    // Phase 3: Center hover + Spiral Bullet Hell
+                    int targetX = getWidth() / 2 - 30;
+                    if (en.x < targetX) en.x += 2;
+                    if (en.x > targetX) en.x -= 2;
+
+                    en.angle += 0.2; // Rotate firing angle
+                    if (rand.nextInt(100) < 15) { // Rapid fire
+                        int bulletSpeed = 4;
+                        // Calculate velocity based on angle
+                        int vx = (int)(bulletSpeed * Math.cos(en.angle));
+                        int vy = (int)(bulletSpeed * Math.sin(en.angle));
+                        
+                        // We need to modify Bullet to handle arbitrary velocity vectors better, 
+                        // but for now we can hack it or update Bullet class.
+                        // The current Bullet class only supports velocityX and fixed vertical speed.
+                        // Let's modify Bullet class to support vx and vy fully or just use what we have.
+                        
+                        // Wait, Bullet only has velocityX and 'speed' which is subtracted from y.
+                        // For spiral, we need X and Y velocity control.
+                        // The current update() is: x += velocityX. 
+                        // The main loop does: b.y -= b.speed.
+                        
+                        // So for a bullet traveling DOWN (enemy bullet), we set speed negative.
+                        // To travel at an angle, we need to set independent X and Y velocities.
+                        // I will update the Bullet class to have vx and vy and use those.
+                        
+                        Bullet eb = new Bullet(en.x + 20, en.y + 30, vx);
+                        eb.speed = -vy; // b.y -= b.speed => b.y -= (-vy) => b.y += vy
+                        enemyBullets.add(eb);
+                        
+                        // Add a second stream for double spiral
+                        vx = (int)(bulletSpeed * Math.cos(en.angle + Math.PI));
+                        vy = (int)(bulletSpeed * Math.sin(en.angle + Math.PI));
+                        Bullet eb2 = new Bullet(en.x + 20, en.y + 30, vx);
+                        eb2.speed = -vy;
+                        enemyBullets.add(eb2);
+                    }
                 }
+                
+                en.x = Math.max(0, Math.min(en.x, getWidth() - 60));
+            } else {
+                // Non-Boss movement
+                // Existing logic? No, wait. 
+                // All enemies move vertically by en.speed in line 490: en.y += en.speed;
+                // Boss horizontal movement is handled above.
+            }
+
+            // Standard shooting for non-boss enemies
+            if (en.type != EnemyType.BOSS && rand.nextInt(100) < 2 + (level / 2)) {
+                 Bullet eb = new Bullet(en.x + 20, en.y + 30, 0);
+                 eb.speed = -4 - (level / 2); // Traveling down
+                 enemyBullets.add(eb);
             }
             
             // Check if enemy hit player
@@ -807,10 +883,11 @@ public class SpaceShooter extends JPanel implements ActionListener, KeyListener 
     private static class Bullet {
         int x, y;
         int damage = 1;
-        int speed = 10;
-        int velocityX = 0;
+        float speed = 10;
+        float velocityX = 0;
+        // Using float for smoother angles if needed, but int is in class. Let's keep int but allow setting vy via speed.
 
-        Bullet(int x, int y, int velocityX) {
+        Bullet(int x, int y, float velocityX) {
             this.x = x;
             this.y = y;
             this.velocityX = velocityX;
@@ -889,6 +966,7 @@ public class SpaceShooter extends JPanel implements ActionListener, KeyListener 
         int health;
         int maxHealth;
         int speed;
+        float angle = 0; // For boss patterns
 
         Enemy(int x, int y, EnemyType type) {
             this.x = x;
@@ -909,7 +987,7 @@ public class SpaceShooter extends JPanel implements ActionListener, KeyListener 
                     this.speed = 1;
                     break;
                 case BOSS:
-                    this.health = 10;
+                    this.health = 50;
                     this.speed = 1;
                     break;
             }
